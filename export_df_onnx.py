@@ -3,23 +3,12 @@ from diffusers import StableDiffusionPipeline, LMSDiscreteScheduler
 import torch
 from transformers import CLIPTextModel
 from alfred import logger
+from torch import nn
+from stablefusion.clip_textmodel import CLIPTextModelTracable
+from stablefusion.unet_2d_condition import UNet2DConditionModelTracable
 
 
-torch_triu = torch.triu
-
-
-def triu_onnx(x, diagonal=0):
-    l = x.shape[0]
-    arange = torch.arange(l, device=x.device)
-    mask = arange.expand(l, l)
-    arange = arange.unsqueeze(-1)
-    if diagonal:
-        arange = arange + diagonal
-    mask = mask >= arange
-    return mask * x
-
-
-text_encoder = CLIPTextModel.from_pretrained(
+text_encoder = CLIPTextModelTracable.from_pretrained(
     "weights/stable-diffusion-v1-4/text_encoder", return_dict=False
 )
 
@@ -51,9 +40,6 @@ def convert_to_onnx(
     p = Path("weights/onnx/")
     p.mkdir(parents=True, exist_ok=True)
 
-    # override default trilu
-    torch.triu = triu_onnx
-
     if height % 8 != 0 or width % 8 != 0:
         raise ValueError(
             f"`height` and `width` have to be divisible by 8 but are {height} and {width}."
@@ -72,11 +58,12 @@ def convert_to_onnx(
             torch.rand(2, 12, 768),
         ),  # batch change, text embed with no trunc
     ]
-    traced_model = torch.jit.trace(
-        unet, check_inputs[0], check_inputs=[check_inputs[1]], strict=True
-    )
+    # traced_model = torch.jit.trace(
+    #     unet, check_inputs[0], check_inputs=[check_inputs[1]], strict=True
+    # )
     torch.onnx.export(
-        traced_model,
+        # traced_model,
+        unet,
         check_inputs[0],
         p / "unet.onnx",
         input_names=["latent_model_input", "t", "encoder_hidden_states"],
@@ -85,7 +72,7 @@ def convert_to_onnx(
             "t": [0],
             "encoder_hidden_states": [0, 1],
         },
-        opset_version=16,
+        opset_version=12,
     )
     logger.info("unet saved.")
 
@@ -100,7 +87,7 @@ def convert_to_onnx(
         p / "post_quant_conv.onnx",
         input_names=["latents"],
         dynamic_axes={"latents": [0]},
-        opset_version=14,
+        opset_version=12,
     )
 
     # decoder onnx export
@@ -114,7 +101,7 @@ def convert_to_onnx(
         p / "decoder.onnx",
         input_names=["latents"],
         dynamic_axes={"latents": [0]},
-        opset_version=14,
+        opset_version=12,
     )
     logger.info("vae decoder saved.")
 
@@ -123,16 +110,21 @@ def convert_to_onnx(
         (torch.randint(1, 24000, (1, 77)),),
         (torch.randint(1, 24000, (2, 77)),),
     ]
-    traced_model = torch.jit.trace(
-        text_encoder, check_inputs[0], check_inputs=[check_inputs[1]], strict=False
-    )
+
+    # torch.triu = triu_onnx
+    # traced_model = torch.jit.trace(
+    #     text_encoder, check_inputs[0], check_inputs=[check_inputs[1]], strict=False
+    # )
+
+    # text_encoder = replace_module(text_encoder, nn.Triu, triu_onnx)
     torch.onnx.export(
-        traced_model,
+        # traced_model,
+        text_encoder,
         check_inputs[0],
         p / "encoder.onnx",
         input_names=["text_input"],
         dynamic_axes={"text_input": [0, 1]},
-        opset_version=14,
+        opset_version=12,
     )
     logger.info("vae encoder saved.")
 

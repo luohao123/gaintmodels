@@ -1,14 +1,7 @@
-# -- coding: utf-8 --`
 import argparse
 import os
-
-# engine
 from stablefusion.stablefusion_ov_engine import StableDiffusionEngine
-
-# scheduler
 from diffusers import LMSDiscreteScheduler, PNDMScheduler
-
-# utils
 import cv2
 import numpy as np
 from alfred import logger
@@ -33,7 +26,10 @@ def main(args):
             tensor_format="np",
         )
     engine = StableDiffusionEngine(
-        model=args.model, scheduler=scheduler, tokenizer=args.tokenizer
+        model=args.model,
+        scheduler=scheduler,
+        tokenizer=args.tokenizer,
+        local_model_path="weights/onnx",
     )
     image = engine(
         prompt=args.prompt,
@@ -45,7 +41,7 @@ def main(args):
         eta=args.eta,
     )
     cv2.imwrite(args.output, image)
-    logger.info(f'result save into: {args.output}')
+    logger.info(f"result save into: {args.output}")
 
 
 if __name__ == "__main__":
@@ -99,7 +95,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--prompt",
         type=str,
-        default="Street-art painting of Emilia Clarke in style of Banksy, photorealism",
+        default="unbelivable real photo of combination of Trump and Biden.",
         help="prompt",
     )
     # img2img params

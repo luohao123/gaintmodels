@@ -30,6 +30,23 @@ git lfs pull
 
 You should downloading weights using `git lfs` large file system, the model about `3GB`.
 
+To make `unet_2d_condition` in stablefusion able to export to onnx, make some modification on `diffusers`, following: [link](https://github.com/harishanand95/diffusers/commit/8dd4e822f87e1b4259755a2181218797ceecc410)
+
+file: `diffuers/models/unet_2d_conditions.py`
+
+```
+# L137
+timesteps = timesteps.broadcast_to(sample.shape[0])
+#timesteps = timesteps.broadcast_to(sample.shape[0])
+timesteps = timesteps * torch.ones(sample.shape[0])
+
+output = {"sample": sample}
+#output = {"sample": sample}
+
+return output
+return sample
+```
+
 After that, move `stable-diffusion-v1-4` to `weights` folder. Run:
 
 ```
