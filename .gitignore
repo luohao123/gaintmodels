@@ -2,3 +2,5 @@
 .vs/
 *.png
 weights/
+__pycache__/
+results/

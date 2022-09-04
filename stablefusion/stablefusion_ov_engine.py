@@ -46,9 +46,9 @@ class StableDiffusionEngine:
             load_local = True
 
         # text features
-        if load_local:
+        if False:
             self._text_encoder = self.core.read_model(
-                os.path.join(local_model_path, "encoder.onnx")
+                os.path.join(local_model_path, "text_encoder.onnx")
             )
             logger.info("text encoder read.")
         else:
@@ -67,9 +67,9 @@ class StableDiffusionEngine:
         self.latent_shape = tuple(self._unet.inputs[0].shape)[1:]
 
         # decoder
-        if load_local:
+        if False:
             self._vae_decoder = self.core.read_model(
-                os.path.join(local_model_path, "decoder.onnx")
+                os.path.join(local_model_path, "vae_decoder.onnx")
             )
         else:
             self._vae_decoder = self.core.read_model(
@@ -79,7 +79,8 @@ class StableDiffusionEngine:
         self.vae_decoder = self.core.compile_model(self._vae_decoder, device)
 
         # encoder
-        if load_local:
+        # if load_local:
+        if False:
             self._vae_encoder = self.core.read_model(
                 os.path.join(local_model_path, "post_quant_conv.onnx")
             )

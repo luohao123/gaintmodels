@@ -61,20 +61,20 @@ def convert_to_onnx(
     # traced_model = torch.jit.trace(
     #     unet, check_inputs[0], check_inputs=[check_inputs[1]], strict=True
     # )
-    torch.onnx.export(
-        # traced_model,
-        unet,
-        check_inputs[0],
-        p / "unet.onnx",
-        input_names=["latent_model_input", "t", "encoder_hidden_states"],
-        dynamic_axes={
-            "latent_model_input": [0],
-            "t": [0],
-            "encoder_hidden_states": [0, 1],
-        },
-        opset_version=12,
-    )
-    logger.info("unet saved.")
+    # torch.onnx.export(
+    #     # traced_model,
+    #     unet,
+    #     check_inputs[0],
+    #     p / "unet.onnx",
+    #     input_names=["latent_model_input", "t", "encoder_hidden_states"],
+    #     dynamic_axes={
+    #         "latent_model_input": [0],
+    #         "t": [0],
+    #         "encoder_hidden_states": [0, 1],
+    #     },
+    #     opset_version=12,
+    # )
+    # logger.info("unet saved.")
 
     # post_quant_conv onnx export
     check_inputs = [(torch.rand(1, 4, h, w),), (torch.rand(2, 4, h, w),)]
@@ -84,9 +84,9 @@ def convert_to_onnx(
     torch.onnx.export(
         traced_model,
         check_inputs[0],
-        p / "post_quant_conv.onnx",
-        input_names=["latents"],
-        dynamic_axes={"latents": [0]},
+        p / "vae_encoder.onnx",
+        input_names=["init_image"],
+        dynamic_axes={"init_image": [0]},
         opset_version=12,
     )
 
@@ -98,7 +98,7 @@ def convert_to_onnx(
     torch.onnx.export(
         traced_model,
         check_inputs[0],
-        p / "decoder.onnx",
+        p / "vae_decoder.onnx",
         input_names=["latents"],
         dynamic_axes={"latents": [0]},
         opset_version=12,
@@ -111,19 +111,16 @@ def convert_to_onnx(
         (torch.randint(1, 24000, (2, 77)),),
     ]
 
-    # torch.triu = triu_onnx
-    # traced_model = torch.jit.trace(
-    #     text_encoder, check_inputs[0], check_inputs=[check_inputs[1]], strict=False
-    # )
-
-    # text_encoder = replace_module(text_encoder, nn.Triu, triu_onnx)
+    traced_model = torch.jit.trace(
+        text_encoder, check_inputs[0], check_inputs=[check_inputs[1]], strict=False
+    )
     torch.onnx.export(
         # traced_model,
         text_encoder,
         check_inputs[0],
-        p / "encoder.onnx",
-        input_names=["text_input"],
-        dynamic_axes={"text_input": [0, 1]},
+        p / "text_encoder.onnx",
+        input_names=["tokens"],
+        dynamic_axes={"tokens": [0, 1]},
         opset_version=12,
     )
     logger.info("vae encoder saved.")

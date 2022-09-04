@@ -5,6 +5,7 @@ from diffusers import LMSDiscreteScheduler, PNDMScheduler
 import cv2
 import numpy as np
 from alfred import logger
+import os
 
 
 def main(args):
@@ -31,17 +32,25 @@ def main(args):
         tokenizer=args.tokenizer,
         local_model_path="weights/onnx",
     )
-    image = engine(
-        prompt=args.prompt,
-        init_image=None if args.init_image is None else cv2.imread(args.init_image),
-        mask=None if args.mask is None else cv2.imread(args.mask, 0),
-        strength=args.strength,
-        num_inference_steps=args.num_inference_steps,
-        guidance_scale=args.guidance_scale,
-        eta=args.eta,
-    )
-    cv2.imwrite(args.output, image)
-    logger.info(f"result save into: {args.output}")
+    txts = []
+    if os.path.isfile(args.prompt):
+        txts = open(args.prompt, "r").readlines()
+        txts = [i.strip() for i in txts]
+    else:
+        txts = [args.prompt]
+
+    for i, prompt in enumerate(txts):
+        image = engine(
+            prompt=prompt,
+            init_image=None if args.init_image is None else cv2.imread(args.init_image),
+            mask=None if args.mask is None else cv2.imread(args.mask, 0),
+            strength=args.strength,
+            num_inference_steps=args.num_inference_steps,
+            guidance_scale=args.guidance_scale,
+            eta=args.eta,
+        )
+        cv2.imwrite(f"res{i}_{args.output}", image)
+        logger.info(f"result save into: res{i}_{args.output}")
 
 
 if __name__ == "__main__":
@@ -93,10 +102,7 @@ if __name__ == "__main__":
     )
     # prompt
     parser.add_argument(
-        "--prompt",
-        type=str,
-        default="unbelivable real photo of combination of Trump and Biden.",
-        help="prompt",
+        "--prompt", type=str, default="prompts.txt", help="prompt",
     )
     # img2img params
     parser.add_argument(
