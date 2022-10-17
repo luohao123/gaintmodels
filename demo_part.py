@@ -7,6 +7,9 @@ from diffusers import LMSDiscreteScheduler
 from tqdm.auto import tqdm
 from PIL import Image
 import argparse
+from alfred.deploy.tensorrt.wrapper import TensorRTInferencer
+from alfred import logger
+
 
 torch_device = "cuda"
 
@@ -23,6 +26,7 @@ def parse_args():
     parser.add_argument("--beta-start", type=float, default=0.00085, help="beta_start")
     parser.add_argument("--beta-end", type=float, default=0.012, help="::beta_end")
     parser.add_argument("--beta-schedule", type=str, default="scaled_linear")
+    parser.add_argument("--trt", action="store_true", default=False)
 
     parser.add_argument("--num_inference_steps", type=int, default=60)
     parser.add_argument("--guidance_scale", type=float, default=7.0)
@@ -54,13 +58,19 @@ def main():
     tokenizer = CLIPTokenizer.from_pretrained(BASE_MODEL_DIR + "/tokenizer")
     text_encoder = CLIPTextModel.from_pretrained(BASE_MODEL_DIR + "/text_encoder")
 
-    unet = UNet2DConditionModel.from_pretrained(
-        BASE_MODEL_DIR,
-        subfolder="unet",
-        torch_dtype=torch.float16,
-        revision="fp16",
-        use_auth_token=YOUR_TOKEN,
-    )
+    if args.trt:
+        unet_trt_enigne = "unet_fp16.trt"
+        logger.info(f'using TensorRT inference unet: {unet_trt_enigne}')
+        assert os.path.exists(unet_trt_enigne), f"{unet_trt_enigne} not found!"
+        unet = TensorRTInferencer(unet_trt_enigne)
+    else:
+        unet = UNet2DConditionModel.from_pretrained(
+            BASE_MODEL_DIR,
+            subfolder="unet",
+            torch_dtype=torch.float16,
+            revision="fp16",
+            use_auth_token=YOUR_TOKEN,
+        )
     scheduler = LMSDiscreteScheduler(
         beta_start=0.00085,
         beta_end=0.012,
@@ -70,7 +80,8 @@ def main():
     # Set the models to your inference device
     vae.to(torch_device)
     text_encoder.to(torch_device)
-    unet.to(torch_device)
+    if not args.trt:
+        unet.to(torch_device)
 
     for index, prompt in enumerate(txts):
         text_input = tokenizer(
@@ -110,9 +121,14 @@ def main():
                 latent_model_input = latent_model_input / ((sigma**2 + 1) ** 0.5)
 
                 # predict the noise residual
-                noise_pred = unet(
-                    latent_model_input, t, encoder_hidden_states=text_embeddings
-                )["sample"]
+                if args.trt:
+                    noise_pred = unet(
+                        latent_model_input, t, encoder_hidden_states=text_embeddings
+                    )
+                else:
+                    noise_pred = unet(
+                        latent_model_input, t, encoder_hidden_states=text_embeddings
+                    )["sample"]
 
                 # perform guidance
                 noise_pred_uncond, noise_pred_text = noise_pred.chunk(2)
