@@ -16,8 +16,10 @@ from alfred import logger
 torch_device = "cuda"
 
 YOUR_TOKEN = None
+# height = 960
+# width = 1080
 height = 512
-width = 512
+width = 544
 UNET_INPUTS_CHANNEL = 4
 BASE_MODEL_DIR = "weights/stable-diffusion-v1-4"
 
