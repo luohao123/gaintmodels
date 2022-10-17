@@ -7,7 +7,9 @@ from diffusers import LMSDiscreteScheduler
 from tqdm.auto import tqdm
 from PIL import Image
 import argparse
-from alfred.deploy.tensorrt.wrapper import TensorRTInferencer
+
+# from alfred.deploy.tensorrt.wrapper import TensorRTInferencer
+from stablefusion.trt_model import TRTModel
 from alfred import logger
 
 
@@ -51,18 +53,13 @@ def main():
     else:
         txts = [args.prompt]
 
-    vae = AutoencoderKL.from_pretrained(
-        BASE_MODEL_DIR, subfolder="vae", use_auth_token=YOUR_TOKEN
-    )
-
-    tokenizer = CLIPTokenizer.from_pretrained(BASE_MODEL_DIR + "/tokenizer")
-    text_encoder = CLIPTextModel.from_pretrained(BASE_MODEL_DIR + "/text_encoder")
-
     if args.trt:
         unet_trt_enigne = "unet_fp16.trt"
-        logger.info(f'using TensorRT inference unet: {unet_trt_enigne}')
+        logger.info(f"using TensorRT inference unet: {unet_trt_enigne}")
         assert os.path.exists(unet_trt_enigne), f"{unet_trt_enigne} not found!"
-        unet = TensorRTInferencer(unet_trt_enigne)
+        # unet = TensorRTInferencer(unet_trt_enigne)
+        unet = TRTModel(unet_trt_enigne)
+        logger.info("unet loaded in trt.")
     else:
         unet = UNet2DConditionModel.from_pretrained(
             BASE_MODEL_DIR,
@@ -71,6 +68,13 @@ def main():
             revision="fp16",
             use_auth_token=YOUR_TOKEN,
         )
+
+    vae = AutoencoderKL.from_pretrained(
+        BASE_MODEL_DIR, subfolder="vae", use_auth_token=YOUR_TOKEN
+    )
+    tokenizer = CLIPTokenizer.from_pretrained(BASE_MODEL_DIR + "/tokenizer")
+    text_encoder = CLIPTextModel.from_pretrained(BASE_MODEL_DIR + "/text_encoder")
+
     scheduler = LMSDiscreteScheduler(
         beta_start=0.00085,
         beta_end=0.012,
@@ -122,8 +126,17 @@ def main():
 
                 # predict the noise residual
                 if args.trt:
-                    noise_pred = unet(
-                        latent_model_input, t, encoder_hidden_states=text_embeddings
+                    # noise_pred = unet.infer(
+                    #     latent_model_input, t, encoder_hidden_states=text_embeddings
+                    # )
+                    inputs = [
+                        latent_model_input,
+                        torch.tensor([t]).to(torch_device),
+                        text_embeddings,
+                    ]
+                    noise_pred, duration = unet(inputs, timing=True)
+                    noise_pred = torch.reshape(
+                        noise_pred[0], (batch_size * 2, 4, 64, 64)
                     )
                 else:
                     noise_pred = unet(
