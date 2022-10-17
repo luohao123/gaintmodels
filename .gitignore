@@ -4,3 +4,6 @@
 weights/
 __pycache__/
 results/
+*.onnx
+*.trt
+
