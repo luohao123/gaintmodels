@@ -19,6 +19,20 @@ pip install alfred-py
 
 1. `StableFusion`:
 
+**update:**
+
+Now the best way to accelerate StableFusion is using unet TensorRT, keep others in torch (their time is not critical).
+to export unet to onnx, run `python export_unet.py`.
+
+Then you will have unet onnx. using `trtexec --onnx=unet_v1_4_fp16_pytorch_sim.onnx  --fp16 --saveEngine=unet_fp16.trt` convert to fp16 trt engine.
+
+Then you can run with trt unet:
+
+```
+python demo_part.py --trt
+```
+
+
 First, we need download stablefusion weights from hugging face. 
 
 ```
@@ -50,7 +64,7 @@ return sample
 After that, move `stable-diffusion-v1-4` to `weights` folder. Run:
 
 ```
-python export_df_onnx.py
+python export.py
 ```
 
 To generate onnx models.

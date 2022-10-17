@@ -24,14 +24,14 @@ BASE_MODEL_DIR = "weights/stable-diffusion-v1-4"
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--seed", type=int, default=12345)
+    parser.add_argument("--seed", type=int, default=1024)
     parser.add_argument("--beta-start", type=float, default=0.00085, help="beta_start")
     parser.add_argument("--beta-end", type=float, default=0.012, help="::beta_end")
     parser.add_argument("--beta-schedule", type=str, default="scaled_linear")
     parser.add_argument("--trt", action="store_true", default=False)
 
-    parser.add_argument("--num_inference_steps", type=int, default=60)
-    parser.add_argument("--guidance_scale", type=float, default=7.0)
+    parser.add_argument("--num_inference_steps", type=int, default=68)
+    parser.add_argument("--guidance_scale", type=float, default=7.5)
     parser.add_argument("--eta", type=float, default=0.0, help="eta")
 
     parser.add_argument("--prompt", type=str, default="prompts.txt", help="prompt")
